@@ -1,0 +1,10 @@
+spring:
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+      database: showcase
+  application:
+    name: showcase
+logging:
+  level:
+    org.springframework.data.mongodb: DEBUG

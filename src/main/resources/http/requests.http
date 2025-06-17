@@ -1,0 +1,2 @@
+GET localhost:8080/movies/search?plot1=snow&plot2=train
+
