@@ -2,7 +2,7 @@ spring:
   data:
     mongodb:
       uri: ${MONGODB_URI}
-      database: showcase
+      database: sample_mflix
   application:
     name: showcase
 logging:
