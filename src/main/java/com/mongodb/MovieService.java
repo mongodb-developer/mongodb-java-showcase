@@ -7,15 +7,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.stream.IntStream;
 
 @Service
 public class MovieService {
 
 	private static final Logger logger = LoggerFactory.getLogger(MovieService.class);
+	private static final String MOVIES_COLLECTION = "movies";
+	private static final String EMBEDDED_MOVIES_COLLECTION = "embedded_movies";
 
 	private final MongoDatabase mongoDatabase;
 
@@ -23,34 +23,36 @@ public class MovieService {
 		this.mongoDatabase = mongoDatabase;
 	}
 
-	public void simulateConcurrentSearch(String plot1, String plot2) {
-		MongoCollection<Document> movies = mongoDatabase.getCollection("movies");
-		int numberOfExecutions = 100;
-		var executor = Executors.newFixedThreadPool(10);
+	public List<Document> getMovies(String plot) {
+		var start = System.currentTimeMillis();
+		MongoCollection<Document> collection = getMoviesCollection();
 
-		IntStream.range(0, numberOfExecutions)
-				.mapToObj(i -> CompletableFuture.runAsync(() -> {
-					List<Document> result = movies.aggregate(List.of(
-							new Document("$match", new Document("fullplot", new Document("$regex", plot1).append("$options", "i"))),
-							new Document("$lookup", new Document("from", "embedded_movies")
-									.append("localField", "title")
-									.append("foreignField", "title")
-									.append("as", "result")),
-							new Document("$unwind", "$result"),
-							new Document("$match", new Document("result.fullplot", new Document("$regex", plot2).append("$options", "i"))),
-							new Document("$project", new Document("title", 1)
-									.append("year", 1)
-									.append("fullplot", 1)
-									.append("result.directors", 1))
-					)).into(new java.util.ArrayList<>());
+		List<Document> result = collection.aggregate(List.of(
+				new Document("$lookup", new Document("from", EMBEDDED_MOVIES_COLLECTION)
+						.append("localField", "title")
+						.append("foreignField", "title")
+						.append("as", "result")),
+				new Document("$match", new Document("fullplot", new Document("$regex", plot).append("$options", "i"))),
+				new Document("$project", new Document("title", 1)
+						.append("year", 1)
+						.append("fullplot", 1)
+						.append("plot_embedding", "$result.plot_embedding")),
+				new Document("$sort", new Document("year", -1))
+		)).into(new ArrayList<>());
 
-					logger.info("Run {}: returned {}", i, result.size() + " documents.");
-
-				}, executor))
-				.toList()
-				.forEach(CompletableFuture::join);
-
-		executor.shutdown();
+		long duration = System.currentTimeMillis() - start;
+		logger.info("Duration: {} ms, Returned: {} documents", duration, result.size());
+		return result;
 	}
 
+	public List<Document> findByTitleAndYear(String title, int year) {
+		return getMoviesCollection()
+				.find(new Document("title", title).append("year", year))
+				.into(new ArrayList<>());
+	}
+
+	private MongoCollection<Document> getMoviesCollection() {
+		return mongoDatabase.getCollection(MOVIES_COLLECTION);
+	}
 }
+
