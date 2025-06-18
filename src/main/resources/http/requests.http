@@ -1,2 +1,6 @@
-GET localhost:8080/movies/simulate-load?plot1=snow&plot2=train
+### Enriched movie details
+GET http://localhost:8080/movies/enriched-details?plot=love
+
+### Find movie by title and year
+GET http://localhost:8080/movies/by-title-year?title=Robbery&year=1903
 
